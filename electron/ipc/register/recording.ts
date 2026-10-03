@@ -800,12 +800,14 @@ export function registerRecordingHandlers(
 				await waitForNativeCaptureStart(captProc);
 				setNativeScreenRecordingActive(true);
 
-				// If the native helper reported MICROPHONE_CAPTURE_UNAVAILABLE, it started
-				// capture without microphone.  Clear the mic path so the renderer can fall
-				// back to a browser-side sidecar recording for the microphone track.
-				const micUnavailableNatively = nativeCaptureOutputBuffer.includes(
-					"MICROPHONE_CAPTURE_UNAVAILABLE",
-				);
+				// If the native helper reported MICROPHONE_CAPTURE_UNAVAILABLE (API missing)
+				// or MICROPHONE_DEVICE_UNAVAILABLE (requested device could not be matched),
+				// it started capture without a microphone.  Clear the mic path so the
+				// renderer can fall back to a browser-side sidecar recording, which
+				// selects the microphone by its exact Chromium deviceId.
+				const micUnavailableNatively =
+					nativeCaptureOutputBuffer.includes("MICROPHONE_CAPTURE_UNAVAILABLE") ||
+					nativeCaptureOutputBuffer.includes("MICROPHONE_DEVICE_UNAVAILABLE");
 				if (micUnavailableNatively) {
 					setNativeCaptureMicrophonePath(null);
 				}
@@ -1439,12 +1441,18 @@ export function registerRecordingHandlers(
 		}
 
 		try {
-			const { paths, startDelayMsByPath } = await getCompanionAudioFallbackInfo(videoPath);
+			const { paths, startDelayMsByPath, silentPaths } =
+				await getCompanionAudioFallbackInfo(videoPath);
 			await Promise.all([
 				rememberApprovedLocalReadPath(videoPath),
 				...paths.map((fallbackPath) => rememberApprovedLocalReadPath(fallbackPath)),
 			]);
-			return { success: true, paths, startDelayMsByPath };
+			return {
+				success: true,
+				paths,
+				startDelayMsByPath,
+				...(silentPaths ? { silentPaths } : {}),
+			};
 		} catch (error) {
 			console.error("Failed to resolve companion audio fallback paths:", error);
 			return { success: false, paths: [], startDelayMsByPath: {}, error: String(error) };
