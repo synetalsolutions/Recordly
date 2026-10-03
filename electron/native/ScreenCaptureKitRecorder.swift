@@ -859,16 +859,22 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 	private static func resolveMicrophoneCaptureDeviceID(config: CaptureConfig) -> String? {
 		let audioDevices = AVCaptureDevice.devices(for: .audio)
 
-		if let microphoneLabel = config.microphoneLabel?.trimmingCharacters(in: .whitespacesAndNewlines), !microphoneLabel.isEmpty {
-			if let matchedDevice = audioDevices.first(where: { $0.localizedName == microphoneLabel }) {
-				return matchedDevice.uniqueID
+		// The label is only a safe bridge from Chromium's opaque deviceId to
+		// AVFoundation when it identifies exactly one device.  Two devices can share
+		// a localizedName (for example two identical USB microphones), and picking
+		// the first would silently record the wrong one instead of requesting the
+		// browser fallback that resolves the exact deviceId.
+		let requestedLabel = config.microphoneLabel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+		if !requestedLabel.isEmpty {
+			let labelMatches = audioDevices.filter { $0.localizedName == requestedLabel }
+			if labelMatches.count == 1 {
+				return labelMatches[0].uniqueID
 			}
 		}
 
-		if let microphoneDeviceId = config.microphoneDeviceId?.trimmingCharacters(in: .whitespacesAndNewlines), !microphoneDeviceId.isEmpty {
-			if audioDevices.contains(where: { $0.uniqueID == microphoneDeviceId }) {
-				return microphoneDeviceId
-			}
+		let requestedDeviceID = config.microphoneDeviceId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+		if !requestedDeviceID.isEmpty, audioDevices.contains(where: { $0.uniqueID == requestedDeviceID }) {
+			return requestedDeviceID
 		}
 
 		return nil

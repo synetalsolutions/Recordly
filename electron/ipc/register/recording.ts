@@ -805,9 +805,14 @@ export function registerRecordingHandlers(
 				// it started capture without a microphone.  Clear the mic path so the
 				// renderer can fall back to a browser-side sidecar recording, which
 				// selects the microphone by its exact Chromium deviceId.
+				//
+				// The stderr markers can land after `waitForNativeCaptureStart` resolves, so
+				// also read the ordered stdout marker the helper prints before "Recording
+				// started".  That guarantees the unavailable status is visible here.
 				const micUnavailableNatively =
 					nativeCaptureOutputBuffer.includes("MICROPHONE_CAPTURE_UNAVAILABLE") ||
-					nativeCaptureOutputBuffer.includes("MICROPHONE_DEVICE_UNAVAILABLE");
+					nativeCaptureOutputBuffer.includes("MICROPHONE_DEVICE_UNAVAILABLE") ||
+					nativeCaptureOutputBuffer.includes("MICROPHONE_DEVICE:unavailable");
 				if (micUnavailableNatively) {
 					setNativeCaptureMicrophonePath(null);
 				}

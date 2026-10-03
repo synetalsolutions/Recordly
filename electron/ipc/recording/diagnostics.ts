@@ -420,6 +420,12 @@ export async function writeRecordingDiagnosticsSnapshot(
  */
 export const SILENT_COMPANION_AUDIO_MAX_VOLUME_DB = -70;
 
+/**
+ * Measure a media file's peak level in dBFS via FFmpeg `volumedetect`.
+ *
+ * @returns The parsed `max_volume` in dBFS, or `null` when the probe fails or the
+ * value cannot be parsed, so callers can distinguish "unknown" from "silent".
+ */
 export async function probeAudioMaxVolumeDb(filePath: string): Promise<number | null> {
 	const ffmpegPath = getFfmpegBinaryPath();
 	let stderr = "";
@@ -444,6 +450,13 @@ export async function probeAudioMaxVolumeDb(filePath: string): Promise<number | 
 	return Number.isFinite(maxVolumeDb) ? maxVolumeDb : null;
 }
 
+/**
+ * Report whether a companion track is effectively digital silence.
+ *
+ * A failed probe yields `false` so an unreadable file is never treated as silent
+ * evidence; only a measured peak at or below {@link SILENT_COMPANION_AUDIO_MAX_VOLUME_DB}
+ * counts.
+ */
 export async function isCompanionAudioEffectivelySilent(filePath: string): Promise<boolean> {
 	const maxVolumeDb = await probeAudioMaxVolumeDb(filePath);
 	return maxVolumeDb !== null && maxVolumeDb <= SILENT_COMPANION_AUDIO_MAX_VOLUME_DB;

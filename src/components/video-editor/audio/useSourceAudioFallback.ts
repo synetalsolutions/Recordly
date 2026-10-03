@@ -30,6 +30,9 @@ export function useSourceAudioFallback({
 		if (sourceChanged) {
 			setSourceAudioFallbackPaths([]);
 			setSourceAudioFallbackStartDelayMsByPath({});
+			// Drop the previous source's silence warning immediately; the new source may
+			// have no path or fail its request, and in both cases it must not linger.
+			toast.dismiss(SOURCE_AUDIO_SILENT_TOAST_ID);
 		}
 
 		if (!currentSourcePath) {
